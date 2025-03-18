@@ -2,14 +2,7 @@ import streamlit as st
 import os
 import pandas as pd
 from pathlib import Path
-import locale
 
-# Tentar configurar o locale para pt_BR.UTF-8, com fallback para configuração padrão
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except locale.Error:
-    locale.setlocale(locale.LC_ALL, '')  # Usa o padrão do sistema se pt_BR não estiver disponível
-    st.warning("Locale 'pt_BR.UTF-8' não disponível. Usando configuração padrão do sistema.")
 
 # Caminho para o diretório principal dos dados
 dados_dir = os.path.join(Path(__file__).parent.parent, 'dados', 'dados_separados')
@@ -51,6 +44,15 @@ def carregar_beneficiarios_parquet(uf, nome_municipio):
         return df
     else:
         return None
+    
+# Função para formatar valores como moeda brasileira manualmente
+def formatar_moeda(valor):
+    try:
+        # Formatar como R$ 1.234,56
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return "R$ 0,00"
+
 
 # Função para exibir os beneficiários no Streamlit
 def exibir_beneficiarios(df):
@@ -58,8 +60,8 @@ def exibir_beneficiarios(df):
         st.subheader("Beneficiários do Bolsa Família")
         st.write(f"Total de registros encontrados: {len(df)}")
         
-        # Criar uma coluna formatada como moeda brasileira para exibição
-        df["Parcela_formatada"] = df["Parcela"].map(lambda x: locale.currency(x, grouping=True, symbol=True))
+        # Criar uma coluna formatada como moeda brasileira manualmente
+        df["Parcela_formatada"] = df["Parcela"].map(formatar_moeda)
         
         # Ordenar pelo valor numérico original
         df = df.sort_values(by="Parcela", ascending=True)
