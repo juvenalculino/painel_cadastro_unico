@@ -5,9 +5,9 @@ from pathlib import Path
 import requests
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
 
 
 
@@ -15,9 +15,9 @@ load_dotenv()
 caminho_arquivo = os.path.join(Path(__file__).parent.parent, 'dados', 'municipios.json')
 base_url = "https://api.portaldatransparencia.gov.br"
 
-api_key = os.getenv("API_KEY")
+#api_key = os.getenv("API_KEY")
+api_key = '47565d4013748b4608d02ec35d2ef216'
 
-print(api_key)
 
 
 def carregar_municipios():
