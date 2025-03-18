@@ -1,10 +1,8 @@
 import streamlit as st
-import json
 import os
 import pandas as pd
 from pathlib import Path
 import locale
-
 
 # Tentar configurar o locale para pt_BR.UTF-8, com fallback para configuração padrão
 try:
@@ -13,40 +11,37 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, '')  # Usa o padrão do sistema se pt_BR não estiver disponível
     st.warning("Locale 'pt_BR.UTF-8' não disponível. Usando configuração padrão do sistema.")
 
-# Caminho para os arquivos Parquet
-parquet_dir = os.path.join(Path(__file__).parent.parent, './dados/dados_por_municipio/')
+# Caminho para o diretório principal dos dados
+dados_dir = os.path.join(Path(__file__).parent.parent, 'dados', 'dados_separados')
 
-# Caminho para o arquivo de municípios
-caminho_arquivo = os.path.join(Path(__file__).parent.parent, 'dados', 'municipios.json')
+# Função para listar os estados (UFs) a partir das pastas
+def listar_estados():
+    if os.path.exists(dados_dir):
+        return [nome for nome in os.listdir(dados_dir) if os.path.isdir(os.path.join(dados_dir, nome))]
+    else:
+        st.error(f"Diretório de dados não encontrado: {dados_dir}")
+        return []
 
-# Função para carregar os municípios do JSON
-def carregar_municipios():
-    with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
-        municipios = json.load(arquivo)
-    return municipios['data']
+# Função para listar os municípios de um estado (UF)
+def listar_municipios_por_estado(uf):
+    pasta_uf = os.path.join(dados_dir, uf)
+    if os.path.exists(pasta_uf):
+        return [nome.replace('.parquet', '') for nome in os.listdir(pasta_uf) if nome.endswith('.parquet')]
+    else:
+        return []
 
-# Filtra municípios por estado
-def filtrar_municipios_por_estado(municipios, estado):
-    return [m for m in municipios if m['Uf'] == estado]
-
-# Obtém o código do município pelo nome
-def get_codigo_municipio(nome_municipio, municipios):
-    for municipio in municipios:
-        if municipio['Nome'].lower() == nome_municipio.lower():
-            return municipio['Codigo']
-    return None
-
-# Função para carregar beneficiários de um arquivo Parquet
-def carregar_beneficiarios_parquet(codigo_municipio):
-    arquivo_parquet = os.path.join(parquet_dir, f"{codigo_municipio}.parquet")
+# Função para carregar beneficiários de um arquivo Parquet baseado em UF e nome do município
+def carregar_beneficiarios_parquet(uf, nome_municipio):
+    arquivo_parquet = os.path.join(dados_dir, uf, f"{nome_municipio}.parquet")
     
     if os.path.exists(arquivo_parquet):
         df = pd.read_parquet(arquivo_parquet)
         
-        # Renomear colunas para facilitar o uso
+        # Renomear colunas para facilitar o uso (ajustar conforme colunas disponíveis)
         df = df.rename(columns={
             "NIS FAVORECIDO": "Nis",
             "NOME FAVORECIDO": "Nome",
+            'CPF FAVORECIDO': 'Cpf',
             "VALOR PARCELA": "Parcela"
         })
         
@@ -91,31 +86,35 @@ def exibir_beneficiarios(df):
         # Coluna 2: Tabela de dados
         with col2:
             st.subheader("Lista de Beneficiários")
-            #st.table(df[["Nome", "Nis", "Parcela_formatada"]].rename(columns={"Parcela_formatada": "Parcela"}))
-            #st.dataframe(df[["nome", "nis", "Parcela_formatada"]].rename(columns={"Parcela_formatada": "Parcela"}))
-            st.dataframe(df[['Nome', 'Nis', 'Parcela_formatada']].rename(columns={'Parcela_formatada': 'Parcela'}), use_container_width=True, hide_index=True)
+            st.dataframe(df[['Nome', 'Nis', 'Cpf', 'Parcela_formatada']].rename(columns={'Parcela_formatada': 'Parcela'}), 
+                         use_container_width=True, hide_index=True)
     else:
         st.error("Nenhum beneficiário encontrado para este município.")
 
 # Interface principal
 def show_pbf():
-    municipios = carregar_municipios()
-    
     st.write("---")
     st.write("### Buscar Beneficiários por Município")
-    estados = sorted(set(m['Uf'] for m in municipios))
+    
+    # Listar estados (UFs) a partir das pastas
+    estados = sorted(listar_estados())
+    if not estados:
+        st.error("Nenhum estado encontrado no diretório de dados.")
+        return
+    
     estado_selecionado = st.selectbox("Escolha um estado:", estados)
-    municipios_filtrados = filtrar_municipios_por_estado(municipios, estado_selecionado)
-    nomes_municipios = [m['Nome'] for m in municipios_filtrados]
-    municipio_selecionado = st.selectbox("Escolha um município:", nomes_municipios)
+    
+    # Listar municípios para o estado selecionado
+    municipios = listar_municipios_por_estado(estado_selecionado)
+    if not municipios:
+        st.error(f"Nenhum município encontrado para o estado {estado_selecionado}.")
+        return
+    
+    municipio_selecionado = st.selectbox("Escolha um município:", municipios)
     
     if st.button("Buscar Beneficiários"):
-        codigo = get_codigo_municipio(municipio_selecionado, municipios_filtrados)
-        if codigo:
-            df_beneficiarios = carregar_beneficiarios_parquet(codigo)
-            exibir_beneficiarios(df_beneficiarios)
-        else:
-            st.error("Município não encontrado.")
+        df_beneficiarios = carregar_beneficiarios_parquet(estado_selecionado, municipio_selecionado)
+        exibir_beneficiarios(df_beneficiarios)
 
 if __name__ == "__main__":
     show_pbf()
