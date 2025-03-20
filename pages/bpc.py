@@ -49,7 +49,7 @@ def carregar_dados_parquet(caminho_parquet):
         return None
 
 def show_bpc():
-    st.title("BPC POR ESTADO E MUUNICIPIO")
+    st.title("BPC POR ESTADO E MUNICÍPIO")
 
     # Diretório base onde estão os arquivos Parquet
     diretorio_base = "./dados/dados_por_municipio/"
